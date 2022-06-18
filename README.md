@@ -55,6 +55,8 @@ In the following exercises we will be modifying the file `src/Command/WorkshopCo
 1. To retrieve the Doctrine `EntityManager`, we will use Symfony dependency injection. There are at least two interfaces that can be injected for that purpose:
    1. `\Doctrine\ORM\EntityManagerInterface`. This is the most direct way.
    2. `\Doctrine\Persistence\ManagerRegistry $doctrine`. This way, we get the entity manager by calling `ManagerRegistry::getManager`.
+2. Run `dconsole workshop` just to make sure it executes without errors.
+3. Commit all changes.
 
 Review points:
 
