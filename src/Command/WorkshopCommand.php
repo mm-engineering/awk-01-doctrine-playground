@@ -11,20 +11,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
-    name: 'workshop:rock-it',
-    description: 'No description for you',
+    name: 'workshop',
+    description: 'Workshop sandbox command',
 )]
-class WorkshopRockItCommand extends Command
+class WorkshopCommand extends Command
 {
-    protected function configure(): void
-    {
-    }
-
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
-        $io->warning('Assuming direct control.');
+        // TODO: write code here
 
         return Command::SUCCESS;
     }
