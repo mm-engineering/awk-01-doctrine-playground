@@ -1,6 +1,4 @@
-# As We Know, Episode 01
-
-**I Want To Speak To The EntityManager**
+# As We Know, Episode 01: I Want To Speak To The EntityManager
 
 _Doctrine EntityManager Tips And Tricks_
 
