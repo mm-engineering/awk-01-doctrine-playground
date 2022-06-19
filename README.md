@@ -65,7 +65,7 @@ Review points:
 
 ### Exercise 3: Enable SQL logging
 
-1. Run `dcomposer require --dev debug`.
+1. Run `docker run --rm --interactive --tty --volume $PWD:/app composer require --dev debug`.
 2. Modify the file `config/packages/monolog.yaml`. Add the following block to the section `when@dev.monolog.handlers`:
    ```yaml
                doctrine:
