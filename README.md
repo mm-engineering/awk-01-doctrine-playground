@@ -1,8 +1,10 @@
-# As We Know, Episode 01: I Want To Speak To The EntityManager
+# As We Know, Episode 01
+
+## I Want To Speak To The EntityManager
 
 _Doctrine EntityManager Tips And Tricks_
 
-This basic Symfony-based project is the playground for exploring various ways of interacting with [Doctrine](https://symfony.com/doc/current/doctrine.html)’s [`EntityManager`](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/tutorials/getting-started.html#obtaining-the-entitymanager).
+This basic Symfony project is the playground for exploring various ways of interacting with [Doctrine](https://symfony.com/doc/current/doctrine.html) and its [`EntityManager`](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/tutorials/getting-started.html#obtaining-the-entitymanager).
 
 ## Prerequisites
 
@@ -65,12 +67,18 @@ Review points:
 
 ### Exercise 3: Enable SQL logging
 
-1. Run `docker run --rm --interactive --tty --volume $PWD:/app composer require --dev debug`.
+1. Run `docker run --rm --interactive --tty --volume $PWD:/app composer require monolog`.
 2. Modify the file `config/packages/monolog.yaml`. Add the following block to the section `when@dev.monolog.handlers`:
    ```yaml
-               doctrine:
-                   type: stream
-                   path: php://stderr
-                   level: debug
-                   channels: ["doctrine"]
+            doctrine:
+                type: stream
+                path: php://stderr
+                level: debug
+                channels: ["doctrine"]
    ```
+   
+Review points:
+
+- Monolog supports the concept of channels: grouping of logs by some topics. Doctrine uses the channel named, unsurprisingly, `doctrine`.
+- Without a handler, a log channel will not go anywhere. So, we set up a handler for the Doctrine channel, _et voilà_.
+- SQL queries/statements are logged at the `debug` level.
