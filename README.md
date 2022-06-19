@@ -221,3 +221,81 @@ Review points:
 - Clearing the entity manager cache speeds up the process considerably, but has little effect on memory usage, as the entities themselves are not that big.
 - Most effective memory consumption optimizations come from disabling logging and debug modes, which might very well be done by default in Production.
 - When clearing the entity manager cache, there is a risk that some entities may become orphaned. Thus, make sure to **not** retain any references to cleared (detached) entities.
+
+### Exercise 6: Fetch a lot of entities
+
+1. Erase all the entities created thus far, e.g.:
+   ```shell
+   dconsole doctrine:schema:drop --force && dconsole doctrine:schema:create
+   ```
+2. Create a set of entities by running this code inside the command:
+   ```php 
+           for ($i = 0; $i < 3; ++$i) {
+               $warehouse = (new Warehouse())->setName('Warehouse #' . $i);
+               $entityManager->persist($warehouse);
+   
+               for ($j = 0; $j < 2; ++$j) {
+                   $item = (new Item())->setName('Item #' . $i . '-' . $j)->setPrice(100 + $j);
+                   $entityManager->persist($item);
+   
+                   $warehouse->addItem($item);
+               }
+           }
+           $entityManager->flush();
+   ```
+3. Re-enable SQL logging by setting the key `doctrine.dbal.logging` to `true` in the file `config/packages/doctrine.yaml`.
+4. To fetch the newly created entities, create the following method in the file `src/Repository/WarehouseRepository.php`:
+   ```php 
+       public function findForWorkshop(): array
+       {
+           return $this->createQueryBuilder('w')
+               ->select('w')
+               ->andWhere('w.id > :val')
+               ->setParameter('val', 0)
+               ->orderBy('w.id', 'ASC')
+               ->getQuery()
+               ->getResult()
+           ;
+       }
+   ```
+5. Query the entities by running this code inside the command, and observe the number of SQL queries issued:
+   ```php 
+           /** @var WarehouseRepository $warehouseRepository */
+           $warehouseRepository = $entityManager->getRepository(Warehouse::class);
+   
+           $warehouses = $warehouseRepository->findForWorkshop();
+           foreach ($warehouses as $warehouse) {
+               foreach ($warehouse->getItems() as $item) {
+                   $output->writeln(sprintf('  >> %s (price %d) from %s', $item->getName(), $item->getPrice(), $warehouse->getName()));
+               }
+           }
+   ```
+6. There should be 4 `SELECT` queries logged. Now, let’s optimise. Introduce the following diff into the file `src/Repository/WarehouseRepository.php`:
+   ```diff 
+   -           ->select('w')
+   +           ->select('w', 'i')
+   +           ->join('w.items', 'i')
+   ```
+   1. Re-run the querying logic, and observe the number of SQL queries issued.
+7. Retrieve the last item by appending the following block to the querying logic above:
+   ```php 
+           $itemId = $item->getId();
+           $itemRepository = $entityManager->getRepository(Item::class);
+           $lastItem = $itemRepository->find($itemId);
+           $output->writeln('Last item is ' . $lastItem->getName());
+   ```
+   1. Re-run the querying logic, and observe whether the method `ItemRepository::find` generated an additional database call.
+8. Now, instead of the previous logic, append this:
+   ```php 
+           $itemId = $item->getId();
+           $itemRepository = $entityManager->getRepository(Item::class);
+           $lastItem = $itemRepository->findOneBy(['id' => $itemId]);
+           $output->writeln('Last item is ' . $lastItem->getName());
+   ```
+   1. Re-run the querying logic, and observe whether the method `ItemRepository::findOneBy` generated an additional database call.
+
+Review points:
+
+- Pre-fetching potentially saves a lot of queries.
+- When an entity is already in the entity manager’s cache, `find`-ing it by its ID does **not** generate a query.
+  - However, finding it by any kind of criteria (even if the criteria is also the ID) **will** generate a query.
