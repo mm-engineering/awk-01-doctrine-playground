@@ -285,12 +285,10 @@ Review points:
            $output->writeln('Last item is ' . $lastItem->getName());
    ```
    1. Re-run the querying logic, and observe whether the method `ItemRepository::find` generated an additional database call.
-8. Now, instead of the previous logic, append this:
-   ```php 
-           $itemId = $item->getId();
-           $itemRepository = $entityManager->getRepository(Item::class);
-           $lastItem = $itemRepository->findOneBy(['id' => $itemId]);
-           $output->writeln('Last item is ' . $lastItem->getName());
+8. Now, slightly change the last block of code:
+   ```diff 
+   -       $lastItem = $itemRepository->find($itemId);
+   +       $lastItem = $itemRepository->findOneBy(['id' => $itemId]);
    ```
    1. Re-run the querying logic, and observe whether the method `ItemRepository::findOneBy` generated an additional database call.
 
