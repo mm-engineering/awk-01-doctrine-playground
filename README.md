@@ -39,7 +39,7 @@ We will run everything in containers, so there is no need to install anything el
 
 ### Exercise 1: Create Doctrine entity classes
 
-Let’s create a handy shell alias for the following section:
+Let’s create a handy shell alias for the following sections:
 
 ```shell
 # Execute bin/console in docker-compose service named 'php' in current directory
@@ -122,18 +122,19 @@ Review points:
 
 ### Exercise 4: Create basic entities
 
-1. In our `WorkshopCommand`, add the following logic:
-```php
-        $item = (new Item())->setName('Grill')->setPrice(20000);
-        $entityManager->persist($item);
-        
-        $warehouse = (new Warehouse())->setName('Marl');
-        $entityManager->persist($warehouse);
-        
-        $warehouse->addItem($item);
-
-        $entityManager->flush();
-```
+1. Create, persist, and flush a simple pair of entities, e.g.:
+   1. In the method `WorkshopCommand::execute`, add the following logic:
+   ```php
+           $item = (new Item())->setName('Grill')->setPrice(20000);
+           $entityManager->persist($item);
+           
+           $warehouse = (new Warehouse())->setName('Marl');
+           $entityManager->persist($warehouse);
+           
+           $warehouse->addItem($item);
+   
+           $entityManager->flush();
+   ```
 2. Run the command, e.g.:
    ```shell
    dconsole workshop
@@ -142,11 +143,81 @@ Review points:
    ```shell
    git add --all && git commit -m 'Complete exercise 4'
    ```
-   
+
 Review points:
 
 - Entities are mutable and can exist in an inconsistent state. E.g., before we call `::addItem`, the item does not belong to any warehouse, even though it is forbidden by our relational constraints.
   - It is our responsibility to make sure the entities are set up completely before the `::flush` call.
 - The order of `::persist` calls is not important: even though the `$item` is persisted before its related `$warehouse`, the code works because actual SQL queries are only executed on the call to `::flush`.
 - Check the order of SQL statements: even though we persist the `$item` before the `$warehouse`, the warehouse is still inserted first, as this would be the only way to obey all constraints.
-- The operations withing the `::flush` call are wrapped in a transaction.
+- The operations within the `::flush` call are wrapped in a transaction.
+
+### Exercise 5: Create two thousand entities
+
+1. Disable SQL logging, because this is about to get heavy:
+   1. In the file `config/packages/doctrine.yaml`, add the following line to the section `doctring.dbal`:
+   ```yaml
+           logging: false
+   ```
+2. Prepare a method that reports the memory usage:
+   1. In our `WorkshopCommand`, add the following method:
+   ```php
+       private function reportMemoryUsage(OutputInterface $output): void
+       {
+           $output->writeln(sprintf(
+               '>> Memory used / allocated: %.1f MB / %.1f MB',
+               memory_get_usage() / 1024 / 1024,
+               memory_get_usage(true) / 1024 / 1024
+           ));
+       }
+   ```
+3. Create, persist, and flush two thousand entities:
+   1. In the method `WorkshopCommand::execute`, add the following logic, replacing the stuff from previous exercise:
+   ```php
+           $start = microtime(true);
+           $this->reportMemoryUsage($output);
+   
+           for ($i = 0; $i < 2_000; ++$i) {
+               $warehouse = (new Warehouse())->setName('Warehouse #' . $i);
+               $entityManager->persist($warehouse);
+   
+               $item = (new Item())->setName('Item #' . $i)->setPrice(100 + $i);
+               $entityManager->persist($item);
+   
+               $warehouse->addItem($item);
+               $entityManager->flush();
+           }
+
+           $this->reportMemoryUsage($output);
+           $output->writeln(sprintf('Took %.1fs', microtime(true) - $start));
+   ```
+4. Run the command and observe the time and memory usage, e.g.:
+   ```shell
+   dconsole workshop
+   ```
+5. Apply optimizations, one by one, re-running the command every time to see the effects:
+   1. Call `EntityManager::clear` at the end of every `for`-loop iteration.
+   2. Before going into the `for`-loop, unset the Doctrine SQL logger, e.g.:
+   ```php 
+   $this->doctrine->getConnection()->getConfiguration()->setSQLLogger(null);
+   ```
+   3. After the `for`-loop is done, force PHP garbage collection, e.g.:
+   ```php
+   gc_collect_cycles(); 
+   ```
+   4. When invoking the `dconsole workshop` command, add the option `--no-debug`.
+6. Try to lift the following lines of code out of the `for`-loop, then set the name of the warehouse to just `'Warehouse'`. Re-run the command and see what happens.
+   ```php
+            $warehouse = (new Warehouse())->setName('Warehouse #' . $i);
+            $entityManager->persist($warehouse);
+   ```
+7. Commit all changes, e.g.:
+   ```shell
+   git add --all && git commit -m 'Complete exercise 5'
+   ```
+
+Review points:
+
+- Clearing the entity manager cache speeds up the process considerably, but has little effect on memory usage, as the entities themselves are not that big.
+- Most effective memory consumption optimizations come from disabling logging and debug modes, which might very well be done by default in Production.
+- When clearing the entity manager cache, there is a risk that some entities may become orphaned. Thus, make sure to **not** retain any references to cleared (detached) entities.
