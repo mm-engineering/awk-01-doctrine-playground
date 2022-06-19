@@ -62,3 +62,15 @@ Review points:
 
 - Retrieving the entity manager through the manager registry is required when multiple entity managers exist.
 - More importantly, through the manager registry we could cure the `ORMException` that tells us that `The EntityManager is closed.`. To learn more, check out the method `ManagerRegistry::resetManager`.
+
+### Exercise 3: Enable SQL logging
+
+1. Run `dcomposer require --dev debug`.
+2. Modify the file `config/packages/monolog.yaml`. Add the following block to the section `when@dev.monolog.handlers`:
+   ```yaml
+               doctrine:
+                   type: stream
+                   path: php://stderr
+                   level: debug
+                   channels: ["doctrine"]
+   ```
