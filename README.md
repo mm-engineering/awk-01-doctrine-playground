@@ -16,11 +16,26 @@ We will run everything in containers, so there is no need to install anything el
 
 ### Install Playground
 
-1. Clone this repository, e.g., `git clone https://github.com/mm-engineering/awk-01-doctrine-playground.git workshop`.
-2. Go into the cloned directory, e.g., `cd workshop`.
-3. Run `docker run --rm --interactive --tty --volume $PWD:/app composer install` to pull all dependencies.
-4. Run `docker-compose build --no-cache --pull` to assemble the containers from scratch.
-5. Run `docker-compose up -d` to launch the containers in the background.
+1. Clone this repository, e.g.:
+   ```shell
+   git clone https://github.com/mm-engineering/awk-01-doctrine-playground.git workshop
+   ```
+2. Go into the cloned directory, e.g.:
+   ```shell
+   cd workshop
+   ```
+3. Pull all dependencies, e.g.:
+   ```shell
+   docker run --rm --interactive --tty --volume $PWD:/app composer install
+   ```
+4. Assemble the containers from scratch:
+   ```shell
+   docker-compose build --no-cache --pull
+   ```
+5. Launch the containers in the background, e.g.:
+   ```shell
+   docker-compose up -d
+   ```
 
 ### Exercise 1: Create Doctrine entity classes
 
@@ -33,17 +48,25 @@ alias dconsole='docker-compose exec php bin/console'
 
 1. Create a couple of entities:
    1. Run `dconsole make:entity`. Name it `Warehouse`. No fields for now.
-   2. Run `dconsole make:entity`. Name it `Item`. No fields for now.
-2. Modify them and create a relationship:
-   1. Run `dconsole make:entity`. Use the name `Warehouse` again to modify it:
       1. Add field `name`. Type `string`. Length `64`. Not nullable.
-      2. Add field `items`. Type `OneToMany`. Related to class `Item`. Inverse field named `warehouse`, not nullable, orphan removal enabled.
-   2. Run `dconsole make:entity`. Use the name `Item` again to modify it:
+   2. Run `dconsole make:entity`. Name it `Item`. No fields for now.
       1. Add field `name`. Type `string`. Length `255`. Not nullable.
       2. Add field `price`. Type `integer`. Nullable.
-3. Generate an appropriate migration with `dconsole make:migration`.
-4. Apply said migration with `dconsole doctrine:migration:migrate`.
-5. Commit all changes.
+2. Create a relationship between entities:
+   1. Run `dconsole make:entity`. Use the name `Warehouse` again to modify it:
+      1. Add field `items`. Type `OneToMany`. Related to class `Item`. Inverse field named `warehouse`, not nullable, orphan removal enabled.
+3. Generate an appropriate migration, e.g.:
+   ```shell
+   dconsole make:migration
+   ```
+4. Apply the migration, e.g.:
+   ```shell
+   dconsole doctrine:migration:migrate
+   ```
+5. Commit all changes, e.g.:
+   ```shell
+   git add --all && git commit -m 'Complete exercise 1'
+   ```
 
 Review points:
 
@@ -52,13 +75,19 @@ Review points:
 
 ### Exercise 2: Inject EntityManager
 
-In the following exercises we will be modifying the file `src/Command/WorkshopCommand.php`, and then executing the corresponding Symfony command.
+In the following exercises we will be modifying the file `src/Command/WorkshopCommand.php`, and then executing the corresponding Symfony command to see how our code performs.
 
 1. To retrieve the Doctrine `EntityManager`, we will use Symfony dependency injection. There are at least two interfaces that can be injected for that purpose:
    1. `\Doctrine\ORM\EntityManagerInterface`. This is the most direct way.
-   2. `\Doctrine\Persistence\ManagerRegistry $doctrine`. This way, we get the entity manager by calling `ManagerRegistry::getManager`.
-2. Run `dconsole workshop` just to make sure it executes without errors.
-3. Commit all changes.
+   2. `\Doctrine\Persistence\ManagerRegistry`. This way, we get the entity manager by calling `ManagerRegistry::getManager`.
+2. Run our command just to make sure it executes without errors, e.g.:
+   ```shell
+   dconsole workshop
+   ```
+3. Commit all changes, e.g.:
+   ```shell
+   git add --all && git commit -m 'Complete exercise 2'
+   ```
 
 Review points:
 
@@ -67,18 +96,57 @@ Review points:
 
 ### Exercise 3: Enable SQL logging
 
-1. Run `docker run --rm --interactive --tty --volume $PWD:/app composer require monolog`.
-2. Modify the file `config/packages/monolog.yaml`. Add the following block to the section `when@dev.monolog.handlers`:
-   ```yaml
-            doctrine:
-                type: stream
-                path: php://stderr
-                level: debug
-                channels: ["doctrine"]
+1. Add the `monolog` bundle to our project, e.g.:
+   ```shell
+   docker run --rm --interactive --tty --volume $PWD:/app composer require monolog
+   ```
+2. Add a handler for the log channel `doctrine`:
+   1. Modify the file `config/packages/monolog.yaml`. Add the following block to the section `when@dev.monolog.handlers`:
+      ```yaml
+               doctrine:
+                   type: stream
+                   path: php://stderr
+                   level: debug
+                   channels: ["doctrine"]
+      ```
+3. Commit all changes, e.g.:
+   ```shell
+   git add --all && git commit -m 'Complete exercise 3'
    ```
    
 Review points:
 
 - Monolog supports the concept of channels: grouping of logs by some topics. Doctrine uses the channel named, unsurprisingly, `doctrine`.
-- Without a handler, a log channel will not go anywhere. So, we set up a handler for the Doctrine channel, _et voilà_.
+- Without a handler, a log channel will not go anywhere. So, we set up a handler that pipes the logs to `stderr`, _et voilà_.
 - SQL queries/statements are logged at the `debug` level.
+
+### Exercise 4: Create basic entities
+
+1. In our `WorkshopCommand`, add the following logic:
+```php
+        $item = (new Item())->setName('Grill')->setPrice(20000);
+        $entityManager->persist($item);
+        
+        $warehouse = (new Warehouse())->setName('Marl');
+        $entityManager->persist($warehouse);
+        
+        $warehouse->addItem($item);
+
+        $entityManager->flush();
+```
+2. Run the command, e.g.:
+   ```shell
+   dconsole workshop
+   ```
+3. Commit all changes, e.g.:
+   ```shell
+   git add --all && git commit -m 'Complete exercise 4'
+   ```
+   
+Review points:
+
+- Entities are mutable and can exist in an inconsistent state. E.g., before we call `::addItem`, the item does not belong to any warehouse, even though it is forbidden by our relational constraints.
+  - It is our responsibility to make sure the entities are set up completely before the `::flush` call.
+- The order of `::persist` calls is not important: even though the `$item` is persisted before its related `$warehouse`, the code works because actual SQL queries are only executed on the call to `::flush`.
+- Check the order of SQL statements: even though we persist the `$item` before the `$warehouse`, the warehouse is still inserted first, as this would be the only way to obey all constraints.
+- The operations withing the `::flush` call are wrapped in a transaction.
